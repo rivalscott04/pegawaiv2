@@ -24,7 +24,6 @@ final class PegawaiControllerExportColumns
         'pendidikan_terakhir',
         'tmt_pensiun',
         'source_unit_slug',
-        'is_active',
     ];
 
     /**

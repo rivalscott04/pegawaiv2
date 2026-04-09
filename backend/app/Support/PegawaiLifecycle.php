@@ -19,15 +19,12 @@ final class PegawaiLifecycle
 			return null;
 		}
 
-		$birth = self::extractBirthDate($pegawai->tempat_tanggal_lahir ?? null);
+		$birth = self::resolveBirthDate($pegawai);
 		if ($birth === null) {
 			return null;
 		}
 
 		$retirementAge = self::determineRetirementAge($pegawai);
-		if ($retirementAge === null) {
-			return null;
-		}
 
 		return $birth->modify(sprintf('+%d years', $retirementAge));
 	}
@@ -66,15 +63,12 @@ final class PegawaiLifecycle
 			return false;
 		}
 
-		$birth = self::extractBirthDate($pegawai->tempat_tanggal_lahir ?? null);
+		$birth = self::resolveBirthDate($pegawai);
 		if ($birth === null) {
 			return false;
 		}
 
 		$retirementAge = self::determineRetirementAge($pegawai);
-		if ($retirementAge === null) {
-			return false;
-		}
 
 		$retirementYm = ((int) $birth->format('Y') + $retirementAge) * 100 + (int) $birth->format('m');
 		$todayYm = ((int) now()->format('Y')) * 100 + (int) now()->format('m');
@@ -82,7 +76,7 @@ final class PegawaiLifecycle
 		return $todayYm >= $retirementYm;
 	}
 
-	private static function determineRetirementAge(Pegawai $pegawai): ?int
+	private static function determineRetirementAge(Pegawai $pegawai): int
 	{
 		$jabatan = self::normalizeText($pegawai->jabatan ?? '');
 		$pangkatGolongan = self::normalizeText($pegawai->pangkat_golongan ?? '');
@@ -105,11 +99,14 @@ final class PegawaiLifecycle
 			return 58;
 		}
 
-		if (self::containsAny($jabatan, ['pelaksana'])) {
-			return 58;
-		}
+		return 58;
+	}
 
-		return null;
+	/** Tanggal lahir: utamakan NIP (8 digit pertama = YYYYMMDD); TTL hanya jika NIP tidak valid. */
+	private static function resolveBirthDate(Pegawai $pegawai): ?\DateTimeImmutable
+	{
+		return self::extractBirthDateFromNip($pegawai->nip ?? null)
+			?? self::extractBirthDate($pegawai->tempat_tanggal_lahir ?? null);
 	}
 
 	private static function extractBirthDate(?string $tempatTanggalLahir): ?\DateTimeImmutable
@@ -123,7 +120,16 @@ final class PegawaiLifecycle
 			return null;
 		}
 
-		if (!preg_match('/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/', $text, $matches)) {
+		if (preg_match('/(\d{4})-(\d{2})-(\d{2})/', $text, $m)) {
+			$year = (int) $m[1];
+			$month = (int) $m[2];
+			$day = (int) $m[3];
+			if (checkdate($month, $day, $year)) {
+				return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+			}
+		}
+
+		if (!preg_match('/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/', $text, $matches)) {
 			return null;
 		}
 
@@ -134,6 +140,28 @@ final class PegawaiLifecycle
 			$year += 1900;
 		}
 
+		if (!checkdate($month, $day, $year)) {
+			return null;
+		}
+
+		return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+	}
+
+	/** NIP ASN: 8 digit pertama = YYYYMMDD tanggal lahir */
+	private static function extractBirthDateFromNip(?string $nip): ?\DateTimeImmutable
+	{
+		if ($nip === null) {
+			return null;
+		}
+
+		$digits = preg_replace('/\D/', '', $nip) ?? '';
+		if (strlen($digits) < 8) {
+			return null;
+		}
+
+		$year = (int) substr($digits, 0, 4);
+		$month = (int) substr($digits, 4, 2);
+		$day = (int) substr($digits, 6, 2);
 		if (!checkdate($month, $day, $year)) {
 			return null;
 		}
