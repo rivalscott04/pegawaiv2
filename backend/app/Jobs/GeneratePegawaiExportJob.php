@@ -2,11 +2,12 @@
 
 namespace App\Jobs;
 
-use App\Exports\PegawaiExport;
+use App\Exports\PegawaiQueryExport;
 use App\Models\Pegawai;
 use App\Support\PegawaiLifecycle;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Models\PegawaiExportTask;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -37,24 +38,24 @@ class GeneratePegawaiExportJob implements ShouldQueue
 
         try {
             $filters = is_array($task->filters) ? $task->filters : [];
-            $rows = $this->buildQuery($filters)->get();
-            PegawaiLifecycle::attachTmtPensiunForExport($rows);
+            $query = $this->buildQuery($filters);
+            $total = (clone $query)->count();
 
             $timestamp = now()->format('Ymd_His');
             $ext = $task->format === 'csv' ? 'csv' : 'xlsx';
-            $filename = "pegawai_{$timestamp}_all_" . $rows->count() . ".{$ext}";
+            $filename = "pegawai_{$timestamp}_all_{$total}.{$ext}";
             $path = "exports/pegawai/{$task->id}/{$filename}";
 
             if ($task->format === 'csv') {
-                $this->storeCsv($rows, $task->separator === 'semicolon' ? ';' : ',', $path);
+                $this->storeCsvFromQuery($query, $task->separator === 'semicolon' ? ';' : ',', $path);
             } else {
-                Excel::store(new PegawaiExport($rows, PegawaiControllerExportColumns::ALL), $path, 'public');
+                Excel::store(new PegawaiQueryExport($query, PegawaiControllerExportColumns::ALL), $path, 'public');
             }
 
             $task->status = 'completed';
             $task->file_name = $filename;
             $task->file_path = $path;
-            $task->total_rows = $rows->count();
+            $task->total_rows = (int) $total;
             $task->finished_at = now();
             $task->error_message = null;
             $task->save();
@@ -66,7 +67,7 @@ class GeneratePegawaiExportJob implements ShouldQueue
         }
     }
 
-    private function buildQuery(array $filters)
+    private function buildQuery(array $filters): Builder
     {
         $query = Pegawai::query()->select(PegawaiControllerExportColumns::databaseColumns())->orderBy('nip');
 
@@ -104,7 +105,7 @@ class GeneratePegawaiExportJob implements ShouldQueue
         return $query;
     }
 
-    private function storeCsv($rows, string $separator, string $path): void
+    private function storeCsvFromQuery(Builder $query, string $separator, string $path): void
     {
         $absolutePath = Storage::disk('public')->path($path);
         $dir = dirname($absolutePath);
@@ -120,13 +121,23 @@ class GeneratePegawaiExportJob implements ShouldQueue
         fwrite($handle, "\xEF\xBB\xBF");
         fputcsv($handle, PegawaiControllerExportColumns::ALL, $separator);
 
-        foreach ($rows as $row) {
-            $line = [];
-            foreach (PegawaiControllerExportColumns::ALL as $column) {
-                $line[] = PegawaiSpreadsheetIdentifiers::csvFieldForExcel($column, $row->{$column} ?? null);
+        $columns = PegawaiControllerExportColumns::ALL;
+        (clone $query)->chunk(500, function ($rows) use ($handle, $separator, $columns) {
+            foreach ($rows as $row) {
+                $line = [];
+                foreach ($columns as $column) {
+                    $value = null;
+                    if ($column === 'tmt_pensiun') {
+                        $d = PegawaiLifecycle::akanPensiunDate($row);
+                        $value = $d !== null ? $d->format('Y-m-d') : null;
+                    } else {
+                        $value = $row->{$column} ?? null;
+                    }
+                    $line[] = PegawaiSpreadsheetIdentifiers::csvFieldForExcel($column, $value);
+                }
+                fputcsv($handle, $line, $separator);
             }
-            fputcsv($handle, $line, $separator);
-        }
+        });
 
         fclose($handle);
     }
