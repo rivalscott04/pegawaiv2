@@ -76,6 +76,10 @@ export type PegawaiV2 = {
 	unit_kerja: string
 	satker_induk: string
 	pangkat_golongan: string
+	/** Nama pangkat PNS (mis. Penata Muda); hanya untuk PNS. */
+	pangkat_pns_nama?: string | null
+	/** Golongan/ruang PNS terurai (mis. III/a); jika tidak terurai, teks asli dari pangkat_golongan. */
+	golongan_pns?: string | null
 	pendidikan_terakhir: string
 	source_unit_slug: string
 	is_active: boolean

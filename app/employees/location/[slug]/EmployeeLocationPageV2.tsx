@@ -1035,6 +1035,26 @@ export default function EmployeeLocationPageV2() {
 											<div className="grid grid-cols-1 gap-3 text-sm">
 												<Field label="Jenis Pegawai" value={selected.jenis_pegawai ?? '-'} />
 												<Field label="Pangkat/Golongan" value={selected.pangkat_golongan ?? '-'} />
+												{selected.pangkat_pns_nama || selected.golongan_pns ? (
+													<>
+														{selected.pangkat_pns_nama ? (
+															<div className="flex items-start gap-2">
+																<div className="min-w-0 flex-1">
+																	<Field label="Pangkat (PNS)" value={selected.pangkat_pns_nama} />
+																</div>
+																<CopyButton value={selected.pangkat_pns_nama} label="Pangkat (PNS)" />
+															</div>
+														) : null}
+														{selected.golongan_pns ? (
+															<div className="flex items-start gap-2">
+																<div className="min-w-0 flex-1">
+																	<Field label="Golongan (PNS)" value={selected.golongan_pns} />
+																</div>
+																<CopyButton value={selected.golongan_pns} label="Golongan (PNS)" />
+															</div>
+														) : null}
+													</>
+												) : null}
 												<Field label="Jabatan" value={selected.jabatan ?? '-'} />
 												<Field label="Unit Kerja" value={selected.unit_kerja ?? '-'} />
 												<Field

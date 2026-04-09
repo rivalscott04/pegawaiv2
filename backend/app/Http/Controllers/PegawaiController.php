@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\PegawaiExport;
 use App\Support\PegawaiLifecycle;
+use App\Support\PnsPangkatGolongan;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Jobs\GeneratePegawaiExportJob;
 use App\Jobs\PegawaiControllerExportColumns;
@@ -76,6 +77,10 @@ class PegawaiController extends Controller
         $rowsWithStatus = $allRows->map(function (Pegawai $row) {
             $computedIsActive = !PegawaiLifecycle::isRetiredByRule($row);
             $row->is_active = $computedIsActive;
+            $pns = PnsPangkatGolongan::parts($row->jenis_pegawai, $row->pangkat_golongan);
+            $row->setAttribute('pangkat_pns_nama', $pns['pangkat']);
+            $row->setAttribute('golongan_pns', $pns['golongan']);
+
             return $row;
         });
 
@@ -360,6 +365,7 @@ class PegawaiController extends Controller
 
         $rows = $query->get();
         PegawaiLifecycle::attachTmtPensiunForExport($rows);
+        PnsPangkatGolongan::attachPegawaiPnsPangkatGolonganForExport($rows);
         $timestamp = now()->format('Ymd_His');
         $scopeLabel = $scope === 'all' ? 'all' : 'page';
         $countLabel = $rows->count();
@@ -448,9 +454,14 @@ class PegawaiController extends Controller
             abort(403, 'Forbidden');
         }
 
+        $payload = $pegawai->only(self::REQUIRED_COLUMNS);
+        $pns = PnsPangkatGolongan::parts($pegawai->jenis_pegawai, $pegawai->pangkat_golongan);
+        $payload['pangkat_pns_nama'] = $pns['pangkat'];
+        $payload['golongan_pns'] = $pns['golongan'];
+
         return response()->json([
             'success' => true,
-            'data' => $pegawai->only(self::REQUIRED_COLUMNS),
+            'data' => $payload,
         ]);
     }
 
