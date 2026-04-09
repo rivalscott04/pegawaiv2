@@ -6,6 +6,7 @@ use App\Exports\PegawaiExport;
 use App\Support\PegawaiLifecycle;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Jobs\GeneratePegawaiExportJob;
+use App\Jobs\PegawaiControllerExportColumns;
 use App\Models\Pegawai;
 use App\Models\PegawaiExportTask;
 use App\Models\RiwayatKenaikanPangkat;
@@ -351,13 +352,14 @@ class PegawaiController extends Controller
         }
 
         $query = $this->pegawaiBaseQuery($validated, $request)
-            ->select(self::REQUIRED_COLUMNS)
+            ->select(PegawaiControllerExportColumns::databaseColumns())
             ->orderBy('nip');
 
         $offset = max(0, ($page - 1) * $limit);
         $query->offset($offset)->limit($limit);
 
         $rows = $query->get();
+        PegawaiLifecycle::attachTmtPensiunForExport($rows);
         $timestamp = now()->format('Ymd_His');
         $scopeLabel = $scope === 'all' ? 'all' : 'page';
         $countLabel = $rows->count();
@@ -369,7 +371,7 @@ class PegawaiController extends Controller
         }
 
         $filename = "pegawai_{$timestamp}_{$scopeLabel}_{$countLabel}.xlsx";
-        return Excel::download(new PegawaiExport($rows, self::REQUIRED_COLUMNS), $filename);
+        return Excel::download(new PegawaiExport($rows, PegawaiControllerExportColumns::ALL), $filename);
     }
 
     public function exportStatus(Request $request, string $taskId)
@@ -666,18 +668,20 @@ class PegawaiController extends Controller
 
     private function streamCsv($rows, string $separator, string $filename): StreamedResponse
     {
-        return response()->streamDownload(function () use ($rows, $separator) {
+        $columns = PegawaiControllerExportColumns::ALL;
+
+        return response()->streamDownload(function () use ($rows, $separator, $columns) {
             $handle = fopen('php://output', 'w');
             if ($handle === false) {
                 return;
             }
 
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, self::REQUIRED_COLUMNS, $separator);
+            fputcsv($handle, $columns, $separator);
 
             foreach ($rows as $row) {
                 $line = [];
-                foreach (self::REQUIRED_COLUMNS as $column) {
+                foreach ($columns as $column) {
                     $line[] = PegawaiSpreadsheetIdentifiers::csvFieldForExcel($column, $row->{$column} ?? null);
                 }
                 fputcsv($handle, $line, $separator);

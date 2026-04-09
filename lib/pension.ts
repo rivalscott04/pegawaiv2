@@ -49,7 +49,9 @@ function getRetirementAge(pegawai: PegawaiV2): number | null {
 	if (containsAny(jabatan, ['penghulu', 'penyuluh', 'pengawas'])) {
 		if (containsAny(jabatan, ['madya'])) return 60
 		if (containsAny(jabatan, ['muda'])) return 58
-		return null
+		// Ahli Pertama / Penghulu Pertama, dll. — sebelumnya null sehingga grid & export kosong
+		if (containsAny(jabatan, ['pertama'])) return 58
+		return 58
 	}
 
 	if (containsAny(jabatan, ['pelaksana'])) {
@@ -61,7 +63,7 @@ function getRetirementAge(pegawai: PegawaiV2): number | null {
 
 export function getRetirementDate(pegawai: PegawaiV2): Date | null {
 	const jenisPegawai = normalizeText(pegawai.jenis_pegawai)
-	if (!containsAny(jenisPegawai, ['pns'])) return null
+	if (!containsAny(jenisPegawai, ['pns', 'pppk'])) return null
 
 	const birthDate = extractBirthDate(pegawai.tempat_tanggal_lahir)
 	if (!birthDate) return null

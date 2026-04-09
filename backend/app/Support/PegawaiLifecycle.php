@@ -9,10 +9,60 @@ use App\Models\Pegawai;
  */
 final class PegawaiLifecycle
 {
+	/**
+	 * Tanggal pensiun (hari ulang tahun pensiun), selaras dengan getRetirementDate di frontend (lib/pension.ts).
+	 */
+	public static function retirementDate(Pegawai $pegawai): ?\DateTimeImmutable
+	{
+		$jenisPegawai = self::normalizeText($pegawai->jenis_pegawai ?? '');
+		if (!self::containsAny($jenisPegawai, ['pns', 'pppk'])) {
+			return null;
+		}
+
+		$birth = self::extractBirthDate($pegawai->tempat_tanggal_lahir ?? null);
+		if ($birth === null) {
+			return null;
+		}
+
+		$retirementAge = self::determineRetirementAge($pegawai);
+		if ($retirementAge === null) {
+			return null;
+		}
+
+		return $birth->modify(sprintf('+%d years', $retirementAge));
+	}
+
+	/**
+	 * TMT pensiun untuk tampilan / export: tanggal 1 bulan berikutnya setelah tanggal pensiun (getAkanPensiunDate di frontend).
+	 */
+	public static function akanPensiunDate(Pegawai $pegawai): ?\DateTimeImmutable
+	{
+		$retirement = self::retirementDate($pegawai);
+		if ($retirement === null) {
+			return null;
+		}
+
+		return $retirement->modify('first day of next month');
+	}
+
+	/**
+	 * @param iterable<int, Pegawai> $rows
+	 */
+	public static function attachTmtPensiunForExport(iterable $rows): void
+	{
+		foreach ($rows as $row) {
+			if (!$row instanceof Pegawai) {
+				continue;
+			}
+			$d = self::akanPensiunDate($row);
+			$row->setAttribute('tmt_pensiun', $d !== null ? $d->format('Y-m-d') : null);
+		}
+	}
+
 	public static function isRetiredByRule(Pegawai $pegawai): bool
 	{
 		$jenisPegawai = self::normalizeText($pegawai->jenis_pegawai ?? '');
-		if (!self::containsAny($jenisPegawai, ['pns'])) {
+		if (!self::containsAny($jenisPegawai, ['pns', 'pppk'])) {
 			return false;
 		}
 
@@ -48,7 +98,11 @@ final class PegawaiLifecycle
 			if (self::containsAny($jabatan, ['muda'])) {
 				return 58;
 			}
-			return null;
+			if (self::containsAny($jabatan, ['pertama'])) {
+				return 58;
+			}
+
+			return 58;
 		}
 
 		if (self::containsAny($jabatan, ['pelaksana'])) {

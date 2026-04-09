@@ -5,12 +5,12 @@ import { useAuthFromStorage } from '@/lib/use-auth-from-storage'
 
 export default function Home() {
   const { isLoggedIn } = useAuthFromStorage()
-  const authOrEmployeesHref = isLoggedIn ? '/employees' : '/auth/login'
+  const lihatDataHref = isLoggedIn ? '/employees' : '/auth/login'
 
   return (
-    <section className="hero min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-base-100 to-base-200">
+    <section className="hero min-h-[calc(100dvh-4rem)] bg-linear-to-b from-base-100 to-base-200">
       <div className="hero-content text-center md:text-left flex-col md:flex-row gap-10">
-        <div className="w-full md:w-1/2">
+        <div className="relative z-10 w-full md:w-1/2">
           <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
             Portal Pegawai Internal
           </h1>
@@ -18,10 +18,10 @@ export default function Home() {
             Platform manajemen data pegawai ASN terpercaya.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <Link href={authOrEmployeesHref} className="btn btn-primary btn-lg shadow-xl shadow-primary/30">
+            <Link href="/auth/login" className="btn btn-primary btn-lg shadow-xl shadow-primary/30">
               Login
             </Link>
-            <Link href={authOrEmployeesHref} className="btn btn-ghost btn-lg shadow-md">
+            <Link href={lihatDataHref} className="btn btn-ghost btn-lg shadow-md">
               Lihat Data
             </Link>
           </div>
@@ -43,7 +43,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="w-full md:w-1/2">
+        <div className="relative z-0 w-full md:w-1/2">
           <div className="mockup-browser border bg-base-300/30">
             <div className="mockup-browser-toolbar">
               <div className="input">/employees?search=andi</div>

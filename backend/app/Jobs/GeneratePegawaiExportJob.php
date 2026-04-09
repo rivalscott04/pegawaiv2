@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exports\PegawaiExport;
 use App\Models\Pegawai;
+use App\Support\PegawaiLifecycle;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Models\PegawaiExportTask;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,6 +38,7 @@ class GeneratePegawaiExportJob implements ShouldQueue
         try {
             $filters = is_array($task->filters) ? $task->filters : [];
             $rows = $this->buildQuery($filters)->get();
+            PegawaiLifecycle::attachTmtPensiunForExport($rows);
 
             $timestamp = now()->format('Ymd_His');
             $ext = $task->format === 'csv' ? 'csv' : 'xlsx';
@@ -66,7 +68,7 @@ class GeneratePegawaiExportJob implements ShouldQueue
 
     private function buildQuery(array $filters)
     {
-        $query = Pegawai::query()->select(PegawaiControllerExportColumns::ALL)->orderBy('nip');
+        $query = Pegawai::query()->select(PegawaiControllerExportColumns::databaseColumns())->orderBy('nip');
 
         if (!empty($filters['pangkat_golongan'] ?? '')) {
             $query->where('pangkat_golongan', 'like', '%' . $filters['pangkat_golongan'] . '%');
@@ -129,29 +131,3 @@ class GeneratePegawaiExportJob implements ShouldQueue
         fclose($handle);
     }
 }
-
-final class PegawaiControllerExportColumns
-{
-    public const ALL = [
-        'nip',
-        'nama',
-        'nip_lama',
-        'tempat_tanggal_lahir',
-        'jenis_kelamin',
-        'agama',
-        'jenis_pegawai',
-        'jabatan',
-        'unit_kerja',
-        'satker_induk',
-        'pangkat_golongan',
-        'pendidikan_terakhir',
-        'source_unit_slug',
-        'is_active',
-        'last_seen_at',
-        'list_fingerprint',
-        'detail_fingerprint',
-        'created_at',
-        'updated_at',
-    ];
-}
-
