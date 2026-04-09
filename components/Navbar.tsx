@@ -139,7 +139,7 @@ export default function Navbar() {
 							</li>
 						</ul>
 					</div>
-				) : pathname !== '/' && pathname !== '/auth/login' && (
+				) : pathname !== '/auth/login' && (
 					<Link className="btn btn-primary shadow-lg shadow-primary/30" href="/auth/login">Login</Link>
 				)}
 

@@ -1,29 +1,11 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuthFromStorage } from '@/lib/use-auth-from-storage'
 
 export default function Home() {
-  const router = useRouter()
   const { isLoggedIn } = useAuthFromStorage()
-
-  function handleLoginClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault()
-    if (isLoggedIn) {
-      router.push('/employees')
-    } else {
-      router.push('/auth/login')
-    }
-  }
-
-  function handleViewDataClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault()
-    if (!isLoggedIn) {
-      router.push('/auth/login')
-    } else {
-      router.push('/employees')
-    }
-  }
+  const authOrEmployeesHref = isLoggedIn ? '/employees' : '/auth/login'
 
   return (
     <section className="hero min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-base-100 to-base-200">
@@ -36,8 +18,12 @@ export default function Home() {
             Platform manajemen data pegawai ASN terpercaya.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <a href="#" onClick={handleLoginClick} className="btn btn-primary btn-lg shadow-xl shadow-primary/30">Login</a>
-            <a href="#" onClick={handleViewDataClick} className="btn btn-ghost btn-lg shadow-md">Lihat Data</a>
+            <Link href={authOrEmployeesHref} className="btn btn-primary btn-lg shadow-xl shadow-primary/30">
+              Login
+            </Link>
+            <Link href={authOrEmployeesHref} className="btn btn-ghost btn-lg shadow-md">
+              Lihat Data
+            </Link>
           </div>
           <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
             <div className="stat bg-base-200 rounded-box p-4">
