@@ -21,8 +21,6 @@ final class PegawaiControllerExportColumns
         'unit_kerja',
         'satker_induk',
         'pangkat_golongan',
-        'pangkat_pns_nama',
-        'golongan_pns',
         'pendidikan_terakhir',
         'tmt_pensiun',
         'source_unit_slug',
@@ -35,6 +33,6 @@ final class PegawaiControllerExportColumns
      */
     public static function databaseColumns(): array
     {
-        return array_values(array_diff(self::ALL, ['tmt_pensiun', 'pangkat_pns_nama', 'golongan_pns']));
+        return array_values(array_diff(self::ALL, ['tmt_pensiun']));
     }
 }

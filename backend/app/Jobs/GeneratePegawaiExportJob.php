@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Exports\PegawaiExport;
 use App\Models\Pegawai;
 use App\Support\PegawaiLifecycle;
-use App\Support\PnsPangkatGolongan;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Models\PegawaiExportTask;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,7 +39,6 @@ class GeneratePegawaiExportJob implements ShouldQueue
             $filters = is_array($task->filters) ? $task->filters : [];
             $rows = $this->buildQuery($filters)->get();
             PegawaiLifecycle::attachTmtPensiunForExport($rows);
-            PnsPangkatGolongan::attachPegawaiPnsPangkatGolonganForExport($rows);
 
             $timestamp = now()->format('Ymd_His');
             $ext = $task->format === 'csv' ? 'csv' : 'xlsx';

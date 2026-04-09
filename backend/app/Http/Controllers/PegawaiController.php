@@ -365,7 +365,6 @@ class PegawaiController extends Controller
 
         $rows = $query->get();
         PegawaiLifecycle::attachTmtPensiunForExport($rows);
-        PnsPangkatGolongan::attachPegawaiPnsPangkatGolonganForExport($rows);
         $timestamp = now()->format('Ymd_His');
         $scopeLabel = $scope === 'all' ? 'all' : 'page';
         $countLabel = $rows->count();
