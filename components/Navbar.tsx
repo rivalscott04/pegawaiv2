@@ -139,9 +139,7 @@ export default function Navbar() {
 							</li>
 						</ul>
 					</div>
-				) : pathname !== '/auth/login' && pathname !== '/' && (
-					<Link className="btn btn-primary shadow-lg shadow-primary/30" href="/auth/login">Login</Link>
-				)}
+				) : null}
 
 				{/* Theme Modal for advanced theme selection - kept as fallback */}
 				<dialog id="theme_modal" className="modal">
