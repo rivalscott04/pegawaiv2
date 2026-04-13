@@ -76,3 +76,57 @@ export function resolveLocationPathSegment(pathSegment: string): {
 	}
 	return { sourceUnitSlug: null, fallbackSatkerInduk: decoded }
 }
+
+const KANTOR_KEMENTERIAN_AGAMA_PREFIX = 'kantor_kementerian_agama_'
+
+/**
+ * Segmen setelah "pegawai_" (tanpa ekstensi), selaras dengan `App\Support\PegawaiExportFilename` (backend).
+ * Slug kab/kota kanonis mempertahankan prefiks `kabupaten_` / `kota_` (mis. Bima kab vs kota).
+ */
+export function pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug: string | null | undefined): string {
+	if (!sourceUnitSlug?.trim()) return 'all'
+	const s = sourceUnitSlug.trim()
+	if (s === KANWIL_SOURCE_UNIT_SLUG) return 'kanwil_ntb'
+
+	const slugKeys = Object.keys(SOURCE_UNIT_SLUG_TO_CANONICAL_INDUK)
+	const hit = slugKeys.find((k) => k.toLowerCase() === s.toLowerCase())
+	if (hit && hit !== KANWIL_SOURCE_UNIT_SLUG) {
+		const rest = hit.startsWith(KANTOR_KEMENTERIAN_AGAMA_PREFIX) ? hit.slice(KANTOR_KEMENTERIAN_AGAMA_PREFIX.length) : hit
+		return (
+			rest
+				.toLowerCase()
+				.replace(/[^a-z0-9_]+/g, '_')
+				.replace(/_+/g, '_')
+				.replace(/^_|_$/g, '') || 'wilayah'
+		)
+	}
+
+	let rest = s
+	if (rest.startsWith(KANTOR_KEMENTERIAN_AGAMA_PREFIX)) {
+		rest = rest.slice(KANTOR_KEMENTERIAN_AGAMA_PREFIX.length)
+	}
+	const seg = rest
+		.toLowerCase()
+		.replace(/[^a-z0-9_]+/g, '_')
+		.replace(/_+/g, '_')
+		.replace(/^_|_$/g, '')
+	return seg || 'wilayah'
+}
+
+/** Fallback unduhan export «semua» jika header Content-Disposition tidak ada. */
+export function pegawaiExportAllFallbackFilename(format: 'csv' | 'xlsx', sourceUnitSlug: string | null | undefined): string {
+	return `pegawai_${pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)}.${format}`
+}
+
+/** Fallback unduhan export halaman saja. */
+export function pegawaiExportPageFallbackFilename(
+	format: 'csv' | 'xlsx',
+	sourceUnitSlug: string | null | undefined,
+	page: number,
+	rowCount: number,
+): string {
+	const key = pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)
+	const p = Math.max(1, page)
+	const n = Math.max(0, rowCount)
+	return `pegawai_${key}_halaman${p}_${n}.${format}`
+}

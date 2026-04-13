@@ -12,6 +12,7 @@ import { apiFetch, apiFetchBlob } from '@/lib/api'
 import { useCanEditEmployees, useCanExportPegawai } from '@/lib/use-permissions-from-storage'
 import { info } from '@/components/Info'
 import { formatDateFriendlyId, getAkanPensiunDate } from '@/lib/pension'
+import { pegawaiExportAllFallbackFilename, pegawaiExportPageFallbackFilename } from '@/lib/ntb-constants'
 
 type DetailTab = 'profile' | 'riwayat'
 type StatusFilter = '' | 'true' | 'false'
@@ -454,7 +455,7 @@ export default function EmployeesPageV2() {
 
 			if (scope === 'page') {
 				const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
-				const fallbackFileName = `pegawai_export_${scope}.${format}`
+				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug || null, page, items.length)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 
 				const url = URL.createObjectURL(blob)
@@ -481,7 +482,7 @@ export default function EmployeesPageV2() {
 
 			async function downloadExportFile(downloadUrl: string) {
 				const { blob, response } = await apiFetchBlob(downloadUrl)
-				const fallbackFileName = `pegawai_export_all.${format}`
+				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug || null)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 				const url = URL.createObjectURL(blob)
 				const anchor = document.createElement('a')

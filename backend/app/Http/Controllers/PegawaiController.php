@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\PegawaiExport;
+use App\Support\PegawaiExportFilename;
 use App\Support\PegawaiLifecycle;
 use App\Support\PnsPangkatGolongan;
 use App\Support\PegawaiSpreadsheetIdentifiers;
@@ -365,17 +366,17 @@ class PegawaiController extends Controller
 
         $rows = $query->get();
         PegawaiLifecycle::attachTmtPensiunForExport($rows);
-        $timestamp = now()->format('Ymd_His');
-        $scopeLabel = $scope === 'all' ? 'all' : 'page';
-        $countLabel = $rows->count();
+        $restrictSlug = $this->wilayahRestrictionSlug($request);
+        $sourceUnitFilter = (string) ($validated['source_unit_slug'] ?? '');
+        $rowCount = $rows->count();
 
         if ($format === 'csv') {
             $csvSeparator = $separator === 'semicolon' ? ';' : ',';
-            $filename = "pegawai_{$timestamp}_{$scopeLabel}_{$countLabel}.csv";
+            $filename = PegawaiExportFilename::pageExportFilename('csv', $restrictSlug, $sourceUnitFilter, $page, $rowCount);
             return $this->streamCsv($rows, $csvSeparator, $filename);
         }
 
-        $filename = "pegawai_{$timestamp}_{$scopeLabel}_{$countLabel}.xlsx";
+        $filename = PegawaiExportFilename::pageExportFilename('xlsx', $restrictSlug, $sourceUnitFilter, $page, $rowCount);
         return Excel::download(new PegawaiExport($rows, PegawaiControllerExportColumns::ALL), $filename);
     }
 

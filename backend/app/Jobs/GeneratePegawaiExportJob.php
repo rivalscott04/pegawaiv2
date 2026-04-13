@@ -7,6 +7,7 @@ use App\Models\Pegawai;
 use App\Support\PegawaiLifecycle;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use App\Models\PegawaiExportTask;
+use App\Support\PegawaiExportFilename;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -41,9 +42,8 @@ class GeneratePegawaiExportJob implements ShouldQueue
             $query = $this->buildQuery($filters);
             $total = (clone $query)->count();
 
-            $timestamp = now()->format('Ymd_His');
             $ext = $task->format === 'csv' ? 'csv' : 'xlsx';
-            $filename = "pegawai_{$timestamp}_all_{$total}.{$ext}";
+            $filename = PegawaiExportFilename::allRecordsFilename($ext, $filters);
             $path = "exports/pegawai/{$task->id}/{$filename}";
 
             if ($task->format === 'csv') {

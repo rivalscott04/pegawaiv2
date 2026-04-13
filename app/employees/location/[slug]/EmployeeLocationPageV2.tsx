@@ -16,6 +16,8 @@ import { formatDateFriendlyId, getAkanPensiunDate } from '@/lib/pension'
 import {
 	canonicalIndukFromSourceUnitSlug,
 	locationTitleFromCanonicalInduk,
+	pegawaiExportAllFallbackFilename,
+	pegawaiExportPageFallbackFilename,
 	resolveLocationPathSegment,
 } from '@/lib/ntb-constants'
 
@@ -436,7 +438,7 @@ export default function EmployeeLocationPageV2() {
 
 			if (scope === 'page') {
 				const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
-				const fallbackFileName = `pegawai_export_${scope}.${format}`
+				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug, page, items.length)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 
 				const url = URL.createObjectURL(blob)
@@ -463,7 +465,7 @@ export default function EmployeeLocationPageV2() {
 
 			async function downloadExportFile(downloadUrl: string) {
 				const { blob, response } = await apiFetchBlob(downloadUrl)
-				const fallbackFileName = `pegawai_export_all.${format}`
+				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 				const url = URL.createObjectURL(blob)
 				const anchor = document.createElement('a')
