@@ -95,7 +95,8 @@ class GeneratePegawaiExportJob implements ShouldQueue
             $search = (string) $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama', 'like', '%' . $search . '%')
-                    ->orWhere('nip', 'like', '%' . $search . '%');
+                    ->orWhere('nip', 'like', '%' . $search . '%')
+                    ->orWhere('jabatan', 'like', '%' . $search . '%');
             });
         }
         if (!empty($filters['is_active'] ?? '')) {

@@ -569,7 +569,7 @@ export default function EmployeesPageV2() {
 
 					<label className="input input-bordered w-full max-w-sm">
 						<input
-							placeholder="Cari nama / NIP"
+							placeholder="Cari nama, NIP, atau jabatan"
 							value={searchInput}
 							onChange={(e) => {
 								setSearchInput(e.target.value)

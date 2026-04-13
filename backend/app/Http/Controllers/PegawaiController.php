@@ -602,7 +602,8 @@ class PegawaiController extends Controller
             $search = (string) $validated['search'];
             $query->where(function (Builder $q) use ($search) {
                 $q->where('nama', 'like', '%' . $search . '%')
-                    ->orWhere('nip', 'like', '%' . $search . '%');
+                    ->orWhere('nip', 'like', '%' . $search . '%')
+                    ->orWhere('jabatan', 'like', '%' . $search . '%');
             });
         }
 
