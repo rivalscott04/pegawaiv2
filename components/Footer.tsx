@@ -23,6 +23,9 @@ export default function Footer() {
 				<Link href="/heatmap" className="link link-hover">
 					Sebaran pegawai
 				</Link>
+				<Link href="/data-informasi" className="link link-hover">
+					Data & informasi
+				</Link>
 			</nav>
 		</footer>
 	)

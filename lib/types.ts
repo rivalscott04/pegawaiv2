@@ -106,6 +106,7 @@ export type PegawaiFiltersResponseV2 = {
 	pangkat_golongan: string[]
 	jabatan: string[]
 	jenis_pegawai: string[]
+	jenis_kelamin?: string[]
 	source_unit_slug: string[]
 	source_units?: Array<{
 		value: string
@@ -131,5 +132,30 @@ export type RiwayatKenaikanPangkatResponse = {
 	totalPages: number
 	page: number
 	limit: number
+}
+
+export type SdmOverviewSummary = {
+	total_pegawai: number
+	total_variasi_jabatan: number
+	rata_per_jabatan: number
+}
+
+export type SdmOverviewTopJabatan = {
+	jabatan: string
+	total: number
+	persentase: number
+}
+
+export type SdmOverviewCluster = {
+	label: string
+	total: number
+	variasi_jabatan: number
+	persentase: number
+}
+
+export type SdmOverviewResponse = {
+	summary: SdmOverviewSummary
+	top_jabatan: SdmOverviewTopJabatan[]
+	cluster_ringkasan: SdmOverviewCluster[]
 }
 

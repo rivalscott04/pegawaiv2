@@ -29,6 +29,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 	Route::get('/pegawai/tempat-kerja', [PegawaiController::class, 'tempatKerja']);
 	Route::get('/pegawai/retired-count', [PegawaiController::class, 'retiredCount']);
 	Route::get('/pegawai/filters', [PegawaiController::class, 'filters']);
+	Route::get('/pegawai/sdm-overview', [PegawaiController::class, 'sdmOverview']);
 	Route::get('/pegawai/export', [PegawaiController::class, 'export']);
 	Route::get('/pegawai/export/{taskId}/status', [PegawaiController::class, 'exportStatus']);
 	Route::get('/pegawai/export/{taskId}/download', [PegawaiController::class, 'exportDownload']);

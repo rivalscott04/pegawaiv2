@@ -15,6 +15,7 @@ use App\Models\RiwayatKenaikanPangkat;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -54,6 +55,7 @@ class PegawaiController extends Controller
             'limit' => ['nullable', 'integer', 'in:10,25,50,100,200'],
             'pangkat_golongan' => ['nullable', 'string', 'max:200'],
             'jenis_pegawai' => ['nullable', 'string', 'max:100'],
+            'jenis_kelamin' => ['nullable', 'string', 'max:100'],
             'satker_induk' => ['nullable', 'string', 'max:500'],
             'unit_kerja' => ['nullable', 'string', 'max:500'],
             'jabatan' => ['nullable', 'string', 'max:1000'],
@@ -218,6 +220,140 @@ class PegawaiController extends Controller
         ]);
     }
 
+    public function sdmOverview(Request $request)
+    {
+        $this->authorize('viewAny', Pegawai::class);
+
+        if ($this->pegawaiKabupatenLingkupInvalid($request)) {
+            return response()->json([
+                'summary' => [
+                    'total_pegawai' => 0,
+                    'total_variasi_jabatan' => 0,
+                    'rata_per_jabatan' => 0,
+                ],
+                'top_jabatan' => [],
+                'cluster_ringkasan' => [],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'top' => ['nullable', 'integer', 'min:5', 'max:50'],
+            'pangkat_golongan' => ['nullable', 'string', 'max:200'],
+            'jenis_pegawai' => ['nullable', 'string', 'max:100'],
+            'jenis_kelamin' => ['nullable', 'string', 'max:100'],
+            'satker_induk' => ['nullable', 'string', 'max:500'],
+            'unit_kerja' => ['nullable', 'string', 'max:500'],
+            'jabatan' => ['nullable', 'string', 'max:1000'],
+            'source_unit_slug' => ['nullable', 'string', 'max:180'],
+            'is_active' => ['nullable', 'in:true,false'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $topLimit = (int) ($validated['top'] ?? 10);
+        $statusFilter = $validated['is_active'] ?? null;
+        unset($validated['top'], $validated['is_active']);
+        $query = $this->pegawaiBaseQuery($validated, $request);
+        if ($statusFilter === 'true') {
+            $query->where('is_active', true);
+        } elseif ($statusFilter === 'false') {
+            $query->where('is_active', false);
+        }
+
+        $jabatanExpr = "COALESCE(NULLIF(TRIM(jabatan), ''), '(Tidak ada jabatan)')";
+        $rankedJabatan = (clone $query)
+            ->selectRaw("{$jabatanExpr} as jabatan, COUNT(*) as total")
+            ->groupBy(DB::raw($jabatanExpr))
+            ->orderByDesc('total')
+            ->orderBy('jabatan')
+            ->get();
+
+        $totalPegawai = (int) $rankedJabatan->sum(fn ($row) => (int) $row->total);
+        $totalVariasi = (int) $rankedJabatan->count();
+
+        $topJabatan = $rankedJabatan
+            ->take($topLimit)
+            ->values()
+            ->map(function ($row) use ($totalPegawai) {
+                $jumlah = (int) $row->total;
+                return [
+                    'jabatan' => (string) $row->jabatan,
+                    'total' => $jumlah,
+                    'persentase' => $totalPegawai > 0 ? round(($jumlah / $totalPegawai) * 100, 2) : 0.0,
+                ];
+            })
+            ->all();
+
+        $clusterRules = [
+            ['label' => 'Guru', 'regex' => '/\bguru\b/i'],
+            ['label' => 'Administrasi/Pelaksana', 'regex' => '/(penata|pelaksana|administrasi|pengadministrasi)/i'],
+            ['label' => 'Penyuluh', 'regex' => '/penyuluh/i'],
+            ['label' => 'Penghulu', 'regex' => '/penghulu/i'],
+            ['label' => 'Pengawas', 'regex' => '/pengawas/i'],
+            ['label' => 'Analis', 'regex' => '/\banalis\b/i'],
+            ['label' => 'Arsiparis', 'regex' => '/arsiparis/i'],
+            ['label' => 'Pranata Komputer', 'regex' => '/pranata komputer/i'],
+            ['label' => 'Perencana', 'regex' => '/\bperencana\b/i'],
+        ];
+
+        $clusterSummary = [];
+        foreach ($clusterRules as $rule) {
+            $clusterSummary[$rule['label']] = [
+                'label' => $rule['label'],
+                'total' => 0,
+                'variasi_jabatan' => 0,
+            ];
+        }
+        $clusterSummary['Lainnya'] = [
+            'label' => 'Lainnya',
+            'total' => 0,
+            'variasi_jabatan' => 0,
+        ];
+
+        foreach ($rankedJabatan as $row) {
+            $jabatan = (string) $row->jabatan;
+            $jumlah = (int) $row->total;
+            $matched = false;
+
+            foreach ($clusterRules as $rule) {
+                if (preg_match($rule['regex'], $jabatan) === 1) {
+                    $clusterSummary[$rule['label']]['total'] += $jumlah;
+                    $clusterSummary[$rule['label']]['variasi_jabatan'] += 1;
+                    $matched = true;
+                    break;
+                }
+            }
+
+            if (!$matched) {
+                $clusterSummary['Lainnya']['total'] += $jumlah;
+                $clusterSummary['Lainnya']['variasi_jabatan'] += 1;
+            }
+        }
+
+        $clusterRows = collect(array_values($clusterSummary))
+            ->map(function (array $row) use ($totalPegawai) {
+                return [
+                    ...$row,
+                    'persentase' => $totalPegawai > 0
+                        ? round(((int) $row['total'] / $totalPegawai) * 100, 2)
+                        : 0.0,
+                ];
+            })
+            ->filter(fn (array $row) => (int) $row['total'] > 0)
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+
+        return response()->json([
+            'summary' => [
+                'total_pegawai' => $totalPegawai,
+                'total_variasi_jabatan' => $totalVariasi,
+                'rata_per_jabatan' => $totalVariasi > 0 ? round($totalPegawai / $totalVariasi, 2) : 0,
+            ],
+            'top_jabatan' => $topJabatan,
+            'cluster_ringkasan' => $clusterRows,
+        ]);
+    }
+
     public function filters(Request $request)
     {
         $this->authorize('viewAny', Pegawai::class);
@@ -230,6 +366,7 @@ class PegawaiController extends Controller
             'unit_kerja' => ['nullable', 'string', 'max:500'],
             'pangkat_golongan' => ['nullable', 'string', 'max:200'],
             'jenis_pegawai' => ['nullable', 'string', 'max:100'],
+            'jenis_kelamin' => ['nullable', 'string', 'max:100'],
         ]);
 
         if ($this->pegawaiKabupatenLingkupInvalid($request)) {
@@ -239,6 +376,7 @@ class PegawaiController extends Controller
                 'pangkat_golongan' => [],
                 'jabatan' => [],
                 'jenis_pegawai' => [],
+                'jenis_kelamin' => [],
                 'source_unit_slug' => [],
             ]);
         }
@@ -270,6 +408,9 @@ class PegawaiController extends Controller
         if (!empty($validated['jenis_pegawai'] ?? '')) {
             $base->where('jenis_pegawai', 'like', '%' . $validated['jenis_pegawai'] . '%');
         }
+        if (!empty($validated['jenis_kelamin'] ?? '')) {
+            $base->where('jenis_kelamin', 'like', '%' . $validated['jenis_kelamin'] . '%');
+        }
 
         $payload = [
             'satker_induk' => $this->distinctValues($base, 'satker_induk', $limit),
@@ -277,6 +418,7 @@ class PegawaiController extends Controller
             'pangkat_golongan' => $this->distinctValues($base, 'pangkat_golongan', $limit),
             'jabatan' => $this->distinctValues($base, 'jabatan', $limit),
             'jenis_pegawai' => $this->distinctValues($base, 'jenis_pegawai', $limit),
+            'jenis_kelamin' => $this->distinctValues($base, 'jenis_kelamin', $limit),
             'source_unit_slug' => $this->distinctValues($base, 'source_unit_slug', $limit),
         ];
 
@@ -300,6 +442,7 @@ class PegawaiController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'pangkat_golongan' => ['nullable', 'string', 'max:200'],
             'jenis_pegawai' => ['nullable', 'string', 'max:100'],
+            'jenis_kelamin' => ['nullable', 'string', 'max:100'],
             'satker_induk' => ['nullable', 'string', 'max:500'],
             'unit_kerja' => ['nullable', 'string', 'max:500'],
             'jabatan' => ['nullable', 'string', 'max:1000'],
@@ -589,6 +732,9 @@ class PegawaiController extends Controller
         if (!empty($validated['jenis_pegawai'] ?? '')) {
             $query->where('jenis_pegawai', 'like', '%' . $validated['jenis_pegawai'] . '%');
         }
+        if (!empty($validated['jenis_kelamin'] ?? '')) {
+            $query->where('jenis_kelamin', 'like', '%' . $validated['jenis_kelamin'] . '%');
+        }
         if (!empty($validated['satker_induk'] ?? '')) {
             $query->where('satker_induk', 'like', '%' . $validated['satker_induk'] . '%');
         }
@@ -661,6 +807,7 @@ class PegawaiController extends Controller
             'pangkat_golongan',
             'jabatan',
             'jenis_pegawai',
+            'jenis_kelamin',
             'source_unit_slug',
         ];
         if (!in_array($column, $allowedColumns, true)) {
@@ -710,6 +857,7 @@ class PegawaiController extends Controller
         $allowed = [
             'pangkat_golongan',
             'jenis_pegawai',
+            'jenis_kelamin',
             'satker_induk',
             'unit_kerja',
             'jabatan',

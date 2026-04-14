@@ -28,6 +28,7 @@ export default function Sidebar() {
   const inEmployees = pathname.startsWith('/employees')
   const inAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
   const inHeatmap = pathname === '/heatmap'
+  const inDataInformasi = pathname === '/data-informasi'
 
   return (
     <div className="drawer-side">
@@ -67,6 +68,22 @@ export default function Sidebar() {
                   <span className="is-drawer-close:hidden">Sebaran Pegawai</span>
                 </a>
               </li>
+              {hasPermission('pegawai.view') && (
+                <li>
+                  <a
+                    href="/data-informasi"
+                    aria-current={inDataInformasi ? 'page' : undefined}
+                    className={`${inDataInformasi ? 'menu-active' : ''} is-drawer-close:tooltip is-drawer-close:tooltip-right`}
+                    data-tip="Data & Informasi"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path fillRule="evenodd" d="M2.25 13.5a8.25 8.25 0 1114.59 5.28l4.69 2.344a.75.75 0 11-.67 1.342l-4.69-2.345A8.25 8.25 0 012.25 13.5zm8.25-6.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5z" clipRule="evenodd" />
+                      <path d="M9 10.5a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-.75v4.5h.75a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75v-6zM12 8.625a.938.938 0 11-1.875 0 .938.938 0 011.875 0z" />
+                    </svg>
+                    <span className="is-drawer-close:hidden">Data & Informasi</span>
+                  </a>
+                </li>
+              )}
 
               {(canManageUsers() || hasPermission('coordinates.manage')) && (
                 <>

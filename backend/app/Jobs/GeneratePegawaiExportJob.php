@@ -77,6 +77,9 @@ class GeneratePegawaiExportJob implements ShouldQueue
         if (!empty($filters['jenis_pegawai'] ?? '')) {
             $query->where('jenis_pegawai', 'like', '%' . $filters['jenis_pegawai'] . '%');
         }
+        if (!empty($filters['jenis_kelamin'] ?? '')) {
+            $query->where('jenis_kelamin', 'like', '%' . $filters['jenis_kelamin'] . '%');
+        }
         if (!empty($filters['satker_induk'] ?? '')) {
             $query->where('satker_induk', 'like', '%' . $filters['satker_induk'] . '%');
         }
