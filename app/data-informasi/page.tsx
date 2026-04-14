@@ -15,6 +15,26 @@ function formatPercent(value: number): string {
 	return `${value.toFixed(2).replace('.', ',')}%`
 }
 
+function formatWilayahLabel(value: string): string {
+	const parts = value
+		.replaceAll('_', ' ')
+		.trim()
+		.split(/\s+/)
+		.map((part) => {
+			if (!part) return part
+			if (part.toLowerCase() === 'kota') return 'Kota'
+			if (part.toLowerCase() === 'kabupaten') return 'Kabupaten'
+			return part[0].toUpperCase() + part.slice(1).toLowerCase()
+		})
+
+	return parts.join(' ')
+}
+
+function getChartColor(index: number): string {
+	const palette = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2', '#ea580c', '#4f46e5']
+	return palette[index % palette.length]
+}
+
 export default function DataInformasiPage() {
 	const [payload, setPayload] = useState<SdmOverviewResponse | null>(null)
 	const [loading, setLoading] = useState(true)
@@ -141,6 +161,20 @@ export default function DataInformasiPage() {
 	}, [canView, filterQuery])
 
 	const topCluster = useMemo(() => payload?.cluster_ringkasan?.[0] ?? null, [payload])
+	const donutGradient = useMemo(() => {
+		if (!payload?.cluster_ringkasan?.length) return 'conic-gradient(#94a3b8 0 100%)'
+		let current = 0
+		const slices = payload.cluster_ringkasan.map((item, index) => {
+			const start = current
+			const end = Math.min(100, current + item.persentase)
+			current = end
+			return `${getChartColor(index)} ${start}% ${end}%`
+		})
+		if (current < 100) {
+			slices.push(`#cbd5e1 ${current}% 100%`)
+		}
+		return `conic-gradient(${slices.join(', ')})`
+	}, [payload])
 
 	if (!canView) {
 		return (
@@ -197,7 +231,7 @@ export default function DataInformasiPage() {
 							))}
 							{!filterOptions?.source_units?.length
 								? (filterOptions?.source_unit_slug ?? []).map((value) => (
-									<option key={value} value={value}>{value}</option>
+									<option key={value} value={value}>{formatWilayahLabel(value)}</option>
 								))
 								: null}
 						</select>
@@ -282,19 +316,23 @@ export default function DataInformasiPage() {
 					<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 						<div className="card bg-base-200 border border-base-300">
 							<div className="card-body p-4">
-								<h2 className="card-title text-lg">Top Jabatan</h2>
+								<h2 className="card-title text-lg">Chart Top Jabatan</h2>
 								<div className="space-y-3">
-									{payload.top_jabatan.map((item) => (
+									{payload.top_jabatan.map((item, index) => (
 										<div key={item.jabatan} className="space-y-1">
 											<div className="flex items-start justify-between gap-2 text-sm">
-												<p className="line-clamp-2">{item.jabatan}</p>
+												<p className="line-clamp-2">{index + 1}. {item.jabatan}</p>
 												<span className="badge badge-primary badge-outline">{formatNumber(item.total)}</span>
 											</div>
-											<progress
-												className="progress progress-primary w-full"
-												value={Math.min(item.persentase, 100)}
-												max={100}
-											></progress>
+											<div className="w-full h-3 rounded-full bg-base-300 overflow-hidden">
+												<div
+													className="h-3 rounded-full"
+													style={{
+														width: `${Math.min(item.persentase, 100)}%`,
+														backgroundColor: getChartColor(index),
+													}}
+												></div>
+											</div>
 											<p className="text-xs opacity-70">{formatPercent(item.persentase)}</p>
 										</div>
 									))}
@@ -304,26 +342,39 @@ export default function DataInformasiPage() {
 
 						<div className="card bg-base-200 border border-base-300">
 							<div className="card-body p-4">
-								<h2 className="card-title text-lg">Infografis Klaster SDM</h2>
-								<div className="overflow-x-auto">
-									<table className="table table-sm">
-										<thead>
-											<tr>
-												<th>Klaster</th>
-												<th className="text-right">Pegawai</th>
-												<th className="text-right">Proporsi</th>
-											</tr>
-										</thead>
-										<tbody>
-											{payload.cluster_ringkasan.map((item) => (
-												<tr key={item.label}>
-													<td>{item.label}</td>
-													<td className="text-right">{formatNumber(item.total)}</td>
-													<td className="text-right">{formatPercent(item.persentase)}</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
+								<h2 className="card-title text-lg">Chart Komposisi Klaster SDM</h2>
+								<div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 items-center">
+									<div className="flex justify-center">
+										<div className="relative w-44 h-44">
+											<div
+												className="w-44 h-44 rounded-full border border-base-300"
+												style={{ background: donutGradient }}
+											></div>
+											<div className="absolute inset-6 rounded-full bg-base-200 border border-base-300 flex items-center justify-center text-center p-2">
+												<div>
+													<p className="text-xs opacity-70">Total Pegawai</p>
+													<p className="text-xl font-bold">{formatNumber(payload.summary.total_pegawai)}</p>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div className="space-y-2">
+										{payload.cluster_ringkasan.map((item, index) => (
+											<div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+												<div className="flex items-center gap-2 min-w-0">
+													<span
+														className="inline-block w-3 h-3 rounded-full shrink-0"
+														style={{ backgroundColor: getChartColor(index) }}
+													></span>
+													<span className="truncate">{item.label}</span>
+												</div>
+												<div className="text-right shrink-0">
+													<div className="font-medium">{formatPercent(item.persentase)}</div>
+													<div className="text-xs opacity-70">{formatNumber(item.total)} pegawai</div>
+												</div>
+											</div>
+										))}
+									</div>
 								</div>
 							</div>
 						</div>
