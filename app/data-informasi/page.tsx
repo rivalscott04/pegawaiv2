@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, apiFetchBlob, hasPermission } from '@/lib/api'
 import { toast } from '@/components/Toaster'
-import type { PegawaiFiltersResponseV2, SdmOverviewResponse } from '@/lib/types'
+import type { PegawaiFiltersResponseV2, PegawaiListResponseV2, SdmOverviewResponse } from '@/lib/types'
 import { useCanExportPegawai } from '@/lib/use-permissions-from-storage'
 import { pegawaiExportAllFallbackFilename } from '@/lib/ntb-constants'
 
@@ -37,6 +37,7 @@ function getChartColor(index: number): string {
 
 export default function DataInformasiPage() {
 	const [payload, setPayload] = useState<SdmOverviewResponse | null>(null)
+	const [statusSummary, setStatusSummary] = useState<{ active: number; inactive: number } | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [exporting, setExporting] = useState(false)
 	const [search, setSearch] = useState('')
@@ -61,6 +62,18 @@ export default function DataInformasiPage() {
 		if (statusFilter) params.set('is_active', statusFilter)
 		return params.toString()
 	}, [search, jenisKelamin, jenisPegawai, jabatan, sourceUnitSlug, statusFilter])
+
+	const statsQuery = useMemo(() => {
+		const params = new URLSearchParams()
+		params.set('page', '1')
+		params.set('limit', '10')
+		if (search) params.set('search', search)
+		if (jenisKelamin) params.set('jenis_kelamin', jenisKelamin)
+		if (jenisPegawai) params.set('jenis_pegawai', jenisPegawai)
+		if (jabatan) params.set('jabatan', jabatan)
+		if (sourceUnitSlug) params.set('source_unit_slug', sourceUnitSlug)
+		return params.toString()
+	}, [search, jenisKelamin, jenisPegawai, jabatan, sourceUnitSlug])
 
 	function getFilenameFromDisposition(disposition: string | null, fallback: string): string {
 		if (!disposition) return fallback
@@ -136,13 +149,18 @@ export default function DataInformasiPage() {
 		let isMounted = true
 		const load = async () => {
 			try {
-				const [response, filters] = await Promise.all([
+				const [response, filters, stats] = await Promise.all([
 					apiFetch<SdmOverviewResponse>(`/pegawai/sdm-overview?${filterQuery}`),
 					apiFetch<PegawaiFiltersResponseV2>('/pegawai/filters?limit=100'),
+					apiFetch<PegawaiListResponseV2>(`/pegawai?${statsQuery}`),
 				])
 				if (isMounted) {
 					setPayload(response)
 					setFilterOptions(filters)
+					setStatusSummary({
+						active: stats?.active ?? 0,
+						inactive: stats?.inactive ?? 0,
+					})
 				}
 			} catch (error) {
 				console.error(error)
@@ -158,9 +176,20 @@ export default function DataInformasiPage() {
 		return () => {
 			isMounted = false
 		}
-	}, [canView, filterQuery])
+	}, [canView, filterQuery, statsQuery])
 
 	const topCluster = useMemo(() => payload?.cluster_ringkasan?.[0] ?? null, [payload])
+	const statusChart = useMemo(() => {
+		const active = statusSummary?.active ?? 0
+		const inactive = statusSummary?.inactive ?? 0
+		const total = active + inactive
+		if (total <= 0) return { activePct: 0, inactivePct: 0, total: 0 }
+		return {
+			activePct: Number(((active / total) * 100).toFixed(2)),
+			inactivePct: Number(((inactive / total) * 100).toFixed(2)),
+			total,
+		}
+	}, [statusSummary])
 	const donutGradient = useMemo(() => {
 		if (!payload?.cluster_ringkasan?.length) return 'conic-gradient(#94a3b8 0 100%)'
 		let current = 0
@@ -316,26 +345,51 @@ export default function DataInformasiPage() {
 					<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 						<div className="card bg-base-200 border border-base-300">
 							<div className="card-body p-4">
-								<h2 className="card-title text-lg">Chart Top Jabatan</h2>
+								<h2 className="card-title text-lg">Chart Status Pegawai</h2>
 								<div className="space-y-3">
-									{payload.top_jabatan.map((item, index) => (
-										<div key={item.jabatan} className="space-y-1">
-											<div className="flex items-start justify-between gap-2 text-sm">
-												<p className="line-clamp-2">{index + 1}. {item.jabatan}</p>
-												<span className="badge badge-primary badge-outline">{formatNumber(item.total)}</span>
+									<div className="w-full h-4 rounded-full bg-base-300 overflow-hidden flex">
+										<div
+											className="h-4 bg-success"
+											style={{ width: `${statusChart.activePct}%` }}
+											title={`Aktif ${formatPercent(statusChart.activePct)}`}
+										></div>
+										<div
+											className="h-4 bg-warning"
+											style={{ width: `${statusChart.inactivePct}%` }}
+											title={`Nonaktif ${formatPercent(statusChart.inactivePct)}`}
+										></div>
+									</div>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+										<div className="card bg-base-100 border border-base-300">
+											<div className="card-body p-3">
+												<p className="text-xs opacity-70">Pegawai Aktif</p>
+												<p className="text-lg font-semibold text-success">{formatNumber(statusSummary?.active ?? 0)}</p>
+												<p className="text-xs opacity-70">{formatPercent(statusChart.activePct)}</p>
 											</div>
-											<div className="w-full h-3 rounded-full bg-base-300 overflow-hidden">
-												<div
-													className="h-3 rounded-full"
-													style={{
-														width: `${Math.min(item.persentase, 100)}%`,
-														backgroundColor: getChartColor(index),
-													}}
-												></div>
-											</div>
-											<p className="text-xs opacity-70">{formatPercent(item.persentase)}</p>
 										</div>
-									))}
+										<div className="card bg-base-100 border border-base-300">
+											<div className="card-body p-3">
+												<p className="text-xs opacity-70">Pegawai Nonaktif</p>
+												<p className="text-lg font-semibold text-warning">{formatNumber(statusSummary?.inactive ?? 0)}</p>
+												<p className="text-xs opacity-70">{formatPercent(statusChart.inactivePct)}</p>
+											</div>
+										</div>
+									</div>
+									<details className="collapse collapse-arrow bg-base-100 border border-base-300">
+										<summary className="collapse-title py-3 min-h-0 text-sm font-medium">
+											Lihat Detail Top Jabatan (opsional)
+										</summary>
+										<div className="collapse-content text-sm pt-1">
+											<ul className="space-y-2">
+												{payload.top_jabatan.map((item, index) => (
+													<li key={item.jabatan} className="flex items-start justify-between gap-3">
+														<span className="line-clamp-2">{index + 1}. {item.jabatan}</span>
+														<span className="badge badge-ghost shrink-0">{formatNumber(item.total)}</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									</details>
 								</div>
 							</div>
 						</div>
