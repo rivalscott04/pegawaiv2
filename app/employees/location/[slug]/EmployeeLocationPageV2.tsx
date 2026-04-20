@@ -158,7 +158,7 @@ export default function EmployeeLocationPageV2() {
 	const [unitKerja, setUnitKerja] = useState('')
 	const [jenisPegawai, setJenisPegawai] = useState('')
 	const [pangkatGolongan, setPangkatGolongan] = useState('')
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>('true')
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
 
 	const [sourceUnitOptions, setSourceUnitOptions] = useState<SourceUnitOption[]>([])
 	const [unitKerjaOptions, setUnitKerjaOptions] = useState<string[]>([])
@@ -648,7 +648,7 @@ export default function EmployeeLocationPageV2() {
 							setUnitKerja('')
 							setJenisPegawai('')
 							setPangkatGolongan('')
-							setStatusFilter('true')
+							setStatusFilter('')
 							setPage(1)
 						}}
 					>

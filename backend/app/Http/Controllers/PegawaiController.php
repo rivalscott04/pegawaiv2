@@ -71,37 +71,32 @@ class PegawaiController extends Controller
         unset($validated['is_active']);
 
         $baseQuery = $this->pegawaiBaseQuery($validated, $request);
-        $allRows = (clone $baseQuery)
+        $active = (int) (clone $baseQuery)->where('is_active', true)->count();
+        $inactive = (int) (clone $baseQuery)->where('is_active', false)->count();
+
+        $filteredQuery = clone $baseQuery;
+        if ($statusFilter === 'true') {
+            $filteredQuery->where('is_active', true);
+        } elseif ($statusFilter === 'false') {
+            $filteredQuery->where('is_active', false);
+        }
+
+        $total = (int) (clone $filteredQuery)->count();
+        $totalPages = (int) ceil($total / max(1, $limit));
+        $rows = $filteredQuery
             ->select(self::REQUIRED_COLUMNS)
             ->orderBy('nama')
             ->orderBy('nip')
-            ->get();
-
-        $rowsWithStatus = $allRows->map(function (Pegawai $row) {
-            $computedIsActive = !PegawaiLifecycle::isRetiredByRule($row);
-            $row->is_active = $computedIsActive;
+            ->offset($offset)
+            ->limit($limit)
+            ->get()
+            ->map(function (Pegawai $row) {
             $pns = PnsPangkatGolongan::parts($row->jenis_pegawai, $row->pangkat_golongan);
             $row->setAttribute('pangkat_pns_nama', $pns['pangkat']);
             $row->setAttribute('golongan_pns', $pns['golongan']);
 
             return $row;
         });
-
-        $active = $rowsWithStatus->where('is_active', true)->count();
-        $inactive = $rowsWithStatus->where('is_active', false)->count();
-
-        $filteredRows = $rowsWithStatus;
-        if ($statusFilter === 'true') {
-            $filteredRows = $filteredRows->where('is_active', true);
-        } elseif ($statusFilter === 'false') {
-            $filteredRows = $filteredRows->where('is_active', false);
-        }
-
-        $total = $filteredRows->count();
-        $totalPages = (int) ceil($total / max(1, $limit));
-        $rows = $filteredRows
-            ->slice($offset, $limit)
-            ->values();
 
         // Response format must match frontend contract exactly.
         return response()->json([
