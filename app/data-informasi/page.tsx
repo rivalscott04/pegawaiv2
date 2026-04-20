@@ -44,7 +44,7 @@ export default function DataInformasiPage() {
 	const [jenisPegawai, setJenisPegawai] = useState('')
 	const [jabatan, setJabatan] = useState('')
 	const [sourceUnitSlug, setSourceUnitSlug] = useState('')
-	const [statusFilter, setStatusFilter] = useState<'true' | 'false' | ''>('true')
+	const [statusFilter, setStatusFilter] = useState<'true' | 'false' | ''>('')
 	const [filterOptions, setFilterOptions] = useState<PegawaiFiltersResponseV2 | null>(null)
 
 	const canView = hasPermission('pegawai.view')
@@ -269,7 +269,7 @@ export default function DataInformasiPage() {
 								setJenisPegawai('')
 								setJabatan('')
 								setSourceUnitSlug('')
-								setStatusFilter('true')
+								setStatusFilter('')
 							}}
 						>
 							Reset Filter
