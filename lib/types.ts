@@ -136,6 +136,8 @@ export type RiwayatKenaikanPangkatResponse = {
 
 export type SdmOverviewSummary = {
 	total_pegawai: number
+	active_pegawai: number
+	inactive_pegawai: number
 	total_variasi_jabatan: number
 	rata_per_jabatan: number
 }

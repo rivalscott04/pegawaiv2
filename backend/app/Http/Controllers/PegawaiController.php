@@ -228,6 +228,8 @@ class PegawaiController extends Controller
             return response()->json([
                 'summary' => [
                     'total_pegawai' => 0,
+                    'active_pegawai' => 0,
+                    'inactive_pegawai' => 0,
                     'total_variasi_jabatan' => 0,
                     'rata_per_jabatan' => 0,
                 ],
@@ -259,6 +261,12 @@ class PegawaiController extends Controller
             $query->where('is_active', false);
         }
 
+        $statusAggregate = (clone $query)
+            ->selectRaw('COUNT(*) as total_pegawai')
+            ->selectRaw('SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_pegawai')
+            ->selectRaw('SUM(CASE WHEN is_active = 0 OR is_active IS NULL THEN 1 ELSE 0 END) as inactive_pegawai')
+            ->first();
+
         $jabatanExpr = "COALESCE(NULLIF(TRIM(jabatan), ''), '(Tidak ada jabatan)')";
         $rankedJabatan = (clone $query)
             ->selectRaw("{$jabatanExpr} as jabatan, COUNT(*) as total")
@@ -267,7 +275,9 @@ class PegawaiController extends Controller
             ->orderBy('jabatan')
             ->get();
 
-        $totalPegawai = (int) $rankedJabatan->sum(fn ($row) => (int) $row->total);
+        $totalPegawai = (int) ($statusAggregate?->total_pegawai ?? 0);
+        $activePegawai = (int) ($statusAggregate?->active_pegawai ?? 0);
+        $inactivePegawai = (int) ($statusAggregate?->inactive_pegawai ?? 0);
         $totalVariasi = (int) $rankedJabatan->count();
 
         $topJabatan = $rankedJabatan
@@ -346,6 +356,8 @@ class PegawaiController extends Controller
         return response()->json([
             'summary' => [
                 'total_pegawai' => $totalPegawai,
+                'active_pegawai' => $activePegawai,
+                'inactive_pegawai' => $inactivePegawai,
                 'total_variasi_jabatan' => $totalVariasi,
                 'rata_per_jabatan' => $totalVariasi > 0 ? round($totalPegawai / $totalVariasi, 2) : 0,
             ],

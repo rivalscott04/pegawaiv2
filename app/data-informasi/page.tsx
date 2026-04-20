@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, apiFetchBlob, hasPermission } from '@/lib/api'
 import { toast } from '@/components/Toaster'
-import type { PegawaiFiltersResponseV2, PegawaiListResponseV2, SdmOverviewResponse } from '@/lib/types'
+import type { PegawaiFiltersResponseV2, SdmOverviewResponse } from '@/lib/types'
 import { useCanExportPegawai } from '@/lib/use-permissions-from-storage'
 import { pegawaiExportAllFallbackFilename } from '@/lib/ntb-constants'
 
@@ -37,7 +37,6 @@ function getChartColor(index: number): string {
 
 export default function DataInformasiPage() {
 	const [payload, setPayload] = useState<SdmOverviewResponse | null>(null)
-	const [statusSummary, setStatusSummary] = useState<{ active: number; inactive: number } | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [exporting, setExporting] = useState(false)
 	const [search, setSearch] = useState('')
@@ -62,18 +61,6 @@ export default function DataInformasiPage() {
 		if (statusFilter) params.set('is_active', statusFilter)
 		return params.toString()
 	}, [search, jenisKelamin, jenisPegawai, jabatan, sourceUnitSlug, statusFilter])
-
-	const statsQuery = useMemo(() => {
-		const params = new URLSearchParams()
-		params.set('page', '1')
-		params.set('limit', '10')
-		if (search) params.set('search', search)
-		if (jenisKelamin) params.set('jenis_kelamin', jenisKelamin)
-		if (jenisPegawai) params.set('jenis_pegawai', jenisPegawai)
-		if (jabatan) params.set('jabatan', jabatan)
-		if (sourceUnitSlug) params.set('source_unit_slug', sourceUnitSlug)
-		return params.toString()
-	}, [search, jenisKelamin, jenisPegawai, jabatan, sourceUnitSlug])
 
 	function getFilenameFromDisposition(disposition: string | null, fallback: string): string {
 		if (!disposition) return fallback
@@ -149,18 +136,13 @@ export default function DataInformasiPage() {
 		let isMounted = true
 		const load = async () => {
 			try {
-				const [response, filters, stats] = await Promise.all([
+				const [response, filters] = await Promise.all([
 					apiFetch<SdmOverviewResponse>(`/pegawai/sdm-overview?${filterQuery}`),
 					apiFetch<PegawaiFiltersResponseV2>('/pegawai/filters?limit=100'),
-					apiFetch<PegawaiListResponseV2>(`/pegawai?${statsQuery}`),
 				])
 				if (isMounted) {
 					setPayload(response)
 					setFilterOptions(filters)
-					setStatusSummary({
-						active: stats?.active ?? 0,
-						inactive: stats?.inactive ?? 0,
-					})
 				}
 			} catch (error) {
 				console.error(error)
@@ -176,12 +158,19 @@ export default function DataInformasiPage() {
 		return () => {
 			isMounted = false
 		}
-	}, [canView, filterQuery, statsQuery])
+	}, [canView, filterQuery])
 
 	const topCluster = useMemo(() => payload?.cluster_ringkasan?.[0] ?? null, [payload])
+	const statusSummary = useMemo(
+		() => ({
+			active: payload?.summary.active_pegawai ?? 0,
+			inactive: payload?.summary.inactive_pegawai ?? 0,
+		}),
+		[payload]
+	)
 	const statusChart = useMemo(() => {
-		const active = statusSummary?.active ?? 0
-		const inactive = statusSummary?.inactive ?? 0
+		const active = statusSummary.active
+		const inactive = statusSummary.inactive
 		const total = active + inactive
 		if (total <= 0) return { activePct: 0, inactivePct: 0, total: 0 }
 		return {
@@ -363,14 +352,14 @@ export default function DataInformasiPage() {
 										<div className="card bg-base-100 border border-base-300">
 											<div className="card-body p-3">
 												<p className="text-xs opacity-70">Pegawai Aktif</p>
-												<p className="text-lg font-semibold text-success">{formatNumber(statusSummary?.active ?? 0)}</p>
+												<p className="text-lg font-semibold text-success">{formatNumber(statusSummary.active)}</p>
 												<p className="text-xs opacity-70">{formatPercent(statusChart.activePct)}</p>
 											</div>
 										</div>
 										<div className="card bg-base-100 border border-base-300">
 											<div className="card-body p-3">
 												<p className="text-xs opacity-70">Pegawai Nonaktif</p>
-												<p className="text-lg font-semibold text-warning">{formatNumber(statusSummary?.inactive ?? 0)}</p>
+												<p className="text-lg font-semibold text-warning">{formatNumber(statusSummary.inactive)}</p>
 												<p className="text-xs opacity-70">{formatPercent(statusChart.inactivePct)}</p>
 											</div>
 										</div>
