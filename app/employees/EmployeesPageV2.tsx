@@ -238,7 +238,8 @@ export default function EmployeesPageV2() {
 		const start = Math.max(2, page - 1)
 		let end = Math.min(totalPages - 1, page + 1)
 
-		if (page <= 4) end = 4
+		// Tetap tampilkan hingga halaman berikutnya (mis. di halaman 4 harus ada tombol 5)
+		if (page <= 4) end = Math.min(totalPages - 1, Math.max(page + 1, 4))
 		// Jangan paksa start ke totalPages-3: itu membuat halaman (page-1) hilang dari tombol
 		// (mis. di 726 tidak bisa klik 725).
 

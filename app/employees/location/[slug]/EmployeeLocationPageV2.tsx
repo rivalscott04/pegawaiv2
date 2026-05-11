@@ -254,7 +254,7 @@ export default function EmployeeLocationPageV2() {
 		const start = Math.max(2, page - 1)
 		let end = Math.min(totalPages - 1, page + 1)
 
-		if (page <= 4) end = 4
+		if (page <= 4) end = Math.min(totalPages - 1, Math.max(page + 1, 4))
 
 		if (start > 2) items.push('ellipsis-left')
 		for (let p = start; p <= end; p += 1) items.push(p)
