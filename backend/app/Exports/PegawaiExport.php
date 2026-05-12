@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Jobs\PegawaiControllerExportColumns;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -29,7 +30,7 @@ class PegawaiExport extends DefaultValueBinder implements FromCollection, WithCo
 
     public function headings(): array
     {
-        return $this->columns;
+        return PegawaiControllerExportColumns::headings($this->columns);
     }
 
     public function columnFormats(): array

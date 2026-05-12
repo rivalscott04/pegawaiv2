@@ -12,7 +12,7 @@ import { apiFetch, apiFetchBlob } from '@/lib/api'
 import { useCanEditEmployees, useCanExportPegawai } from '@/lib/use-permissions-from-storage'
 import { info } from '@/components/Info'
 import { formatDateFriendlyId, getAkanPensiunDate } from '@/lib/pension'
-import { pegawaiExportAllFallbackFilename, pegawaiExportPageFallbackFilename } from '@/lib/ntb-constants'
+import { pegawaiExportAllFallbackFilename, pegawaiExportPageFallbackFilename, type PegawaiExportFilters } from '@/lib/ntb-constants'
 
 type DetailTab = 'profile' | 'riwayat'
 type StatusFilter = '' | 'true' | 'false'
@@ -454,9 +454,16 @@ export default function EmployeesPageV2() {
 				params.set('separator', separator)
 			}
 
+		const exportFilters: PegawaiExportFilters = {
+				jenis_pegawai: jenisPegawai || undefined,
+				jenis_kelamin: undefined,
+				pangkat_golongan: pangkatGolongan || undefined,
+				is_active: statusFilter || undefined,
+			}
+
 			if (scope === 'page') {
-				const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
-				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug || null, page, items.length)
+			const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
+				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug || null, page, items.length, exportFilters)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 
 				const url = URL.createObjectURL(blob)
@@ -483,7 +490,7 @@ export default function EmployeesPageV2() {
 
 			async function downloadExportFile(downloadUrl: string) {
 				const { blob, response } = await apiFetchBlob(downloadUrl)
-				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug || null)
+				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug || null, exportFilters)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 				const url = URL.createObjectURL(blob)
 				const anchor = document.createElement('a')

@@ -113,9 +113,48 @@ export function pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug: string 
 	return seg || 'wilayah'
 }
 
+export interface PegawaiExportFilters {
+	jenis_pegawai?: string
+	jenis_kelamin?: string
+	pangkat_golongan?: string
+	is_active?: string
+}
+
+function slugify(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '_')
+		.replace(/_+/g, '_')
+		.replace(/^_|_$/g, '')
+}
+
+function buildFilterSegments(filters?: PegawaiExportFilters): string[] {
+	if (!filters) return []
+	const mapping: { key: keyof PegawaiExportFilters; prefix?: string }[] = [
+		{ key: 'jenis_pegawai' },
+		{ key: 'jenis_kelamin' },
+		{ key: 'pangkat_golongan', prefix: 'gol' },
+		{ key: 'is_active' },
+	]
+	const segments: string[] = []
+	for (const { key, prefix } of mapping) {
+		const val = filters[key]?.trim()
+		if (!val) continue
+		const s = slugify(val)
+		if (!s) continue
+		segments.push(prefix ? `${prefix}_${s}` : s)
+	}
+	return segments
+}
+
 /** Fallback unduhan export «semua» jika header Content-Disposition tidak ada. */
-export function pegawaiExportAllFallbackFilename(format: 'csv' | 'xlsx', sourceUnitSlug: string | null | undefined): string {
-	return `pegawai_${pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)}.${format}`
+export function pegawaiExportAllFallbackFilename(
+	format: 'csv' | 'xlsx',
+	sourceUnitSlug: string | null | undefined,
+	filters?: PegawaiExportFilters,
+): string {
+	const parts = [...buildFilterSegments(filters), pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)]
+	return `pegawai_${parts.join('_')}.${format}`
 }
 
 /** Fallback unduhan export halaman saja. */
@@ -124,9 +163,10 @@ export function pegawaiExportPageFallbackFilename(
 	sourceUnitSlug: string | null | undefined,
 	page: number,
 	rowCount: number,
+	filters?: PegawaiExportFilters,
 ): string {
-	const key = pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)
+	const parts = [...buildFilterSegments(filters), pegawaiExportRegionKeyFromSourceUnitSlug(sourceUnitSlug)]
 	const p = Math.max(1, page)
 	const n = Math.max(0, rowCount)
-	return `pegawai_${key}_halaman${p}_${n}.${format}`
+	return `pegawai_${parts.join('_')}_hal${p}_${n}.${format}`
 }

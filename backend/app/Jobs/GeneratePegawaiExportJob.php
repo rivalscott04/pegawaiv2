@@ -123,7 +123,7 @@ class GeneratePegawaiExportJob implements ShouldQueue
         }
 
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, PegawaiControllerExportColumns::ALL, $separator);
+        fputcsv($handle, PegawaiControllerExportColumns::headings(PegawaiControllerExportColumns::ALL), $separator);
 
         $columns = PegawaiControllerExportColumns::ALL;
         (clone $query)->chunk(500, function ($rows) use ($handle, $separator, $columns) {

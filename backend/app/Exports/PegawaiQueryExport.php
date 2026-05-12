@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Jobs\PegawaiControllerExportColumns;
 use App\Support\PegawaiLifecycle;
 use App\Support\PegawaiSpreadsheetIdentifiers;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,7 +38,7 @@ class PegawaiQueryExport extends DefaultValueBinder implements FromQuery, WithCh
 
     public function headings(): array
     {
-        return $this->columns;
+        return PegawaiControllerExportColumns::headings($this->columns);
     }
 
     public function columnFormats(): array

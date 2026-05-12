@@ -34,7 +34,9 @@ final class PegawaiExportFilename
 
     public static function allRecordsFilename(string $ext, array $filters): string
     {
-        return 'pegawai_' . self::regionKeyFromFilters($filters) . '.' . ltrim($ext, '.');
+        $segments = self::buildSegments($filters);
+
+        return 'pegawai_' . implode('_', $segments) . '.' . ltrim($ext, '.');
     }
 
     /**
@@ -45,9 +47,10 @@ final class PegawaiExportFilename
         ?string $wilayahSlug,
         string $sourceUnitSlugFilter,
         int $page,
-        int $rowCount
+        int $rowCount,
+        array $extraFilters = []
     ): string {
-        $filters = [];
+        $filters = $extraFilters;
         if ($wilayahSlug !== null && trim($wilayahSlug) !== '') {
             $filters['wilayah_source_unit_slug'] = $wilayahSlug;
         }
@@ -55,12 +58,65 @@ final class PegawaiExportFilename
             $filters['source_unit_slug'] = $sourceUnitSlugFilter;
         }
 
-        $key = self::regionKeyFromFilters($filters);
+        $segments = self::buildSegments($filters);
         $ext = ltrim($ext, '.');
         $p = max(1, $page);
         $n = max(0, $rowCount);
 
-        return "pegawai_{$key}_halaman{$p}_{$n}.{$ext}";
+        return 'pegawai_' . implode('_', $segments) . "_hal{$p}_{$n}.{$ext}";
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function buildSegments(array $filters): array
+    {
+        $segments = [];
+
+        foreach (self::filterSegments($filters) as $seg) {
+            $segments[] = $seg;
+        }
+
+        $segments[] = self::regionKeyFromFilters($filters);
+
+        return $segments;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function filterSegments(array $filters): array
+    {
+        $mapping = [
+            'jenis_pegawai' => null,
+            'jenis_kelamin' => null,
+            'pangkat_golongan' => 'gol',
+            'is_active' => null,
+        ];
+
+        $segments = [];
+        foreach ($mapping as $key => $prefix) {
+            $val = $filters[$key] ?? null;
+            if ($val === null || ($str = trim((string) $val)) === '') {
+                continue;
+            }
+            $slug = self::slugify($str);
+            if ($slug === '') {
+                continue;
+            }
+            $segments[] = $prefix !== null ? "{$prefix}_{$slug}" : $slug;
+        }
+
+        return $segments;
+    }
+
+    private static function slugify(string $value): string
+    {
+        $s = strtolower($value);
+        $s = preg_replace('/[^a-z0-9]+/', '_', $s) ?? '';
+        $s = preg_replace('/_+/', '_', $s);
+
+        return trim($s, '_');
     }
 
     private static function humanRegionKey(string $slug): string

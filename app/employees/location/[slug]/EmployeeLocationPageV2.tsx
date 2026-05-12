@@ -19,6 +19,7 @@ import {
 	pegawaiExportAllFallbackFilename,
 	pegawaiExportPageFallbackFilename,
 	resolveLocationPathSegment,
+	type PegawaiExportFilters,
 } from '@/lib/ntb-constants'
 
 type DetailTab = 'profile' | 'riwayat'
@@ -436,9 +437,16 @@ export default function EmployeeLocationPageV2() {
 				params.set('separator', separator)
 			}
 
+		const exportFilters: PegawaiExportFilters = {
+				jenis_pegawai: jenisPegawai || undefined,
+				jenis_kelamin: undefined,
+				pangkat_golongan: pangkatGolongan || undefined,
+				is_active: statusFilter || undefined,
+			}
+
 			if (scope === 'page') {
-				const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
-				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug, page, items.length)
+			const { blob, response } = await apiFetchBlob(`/pegawai/export?${params.toString()}`)
+				const fallbackFileName = pegawaiExportPageFallbackFilename(format, sourceUnitSlug, page, items.length, exportFilters)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 
 				const url = URL.createObjectURL(blob)
@@ -465,7 +473,7 @@ export default function EmployeeLocationPageV2() {
 
 			async function downloadExportFile(downloadUrl: string) {
 				const { blob, response } = await apiFetchBlob(downloadUrl)
-				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug)
+				const fallbackFileName = pegawaiExportAllFallbackFilename(format, sourceUnitSlug, exportFilters)
 				const fileName = getFilenameFromDisposition(response.headers.get('content-disposition'), fallbackFileName)
 				const url = URL.createObjectURL(blob)
 				const anchor = document.createElement('a')

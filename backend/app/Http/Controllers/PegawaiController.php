@@ -524,14 +524,15 @@ class PegawaiController extends Controller
         $restrictSlug = $this->wilayahRestrictionSlug($request);
         $sourceUnitFilter = (string) ($validated['source_unit_slug'] ?? '');
         $rowCount = $rows->count();
+        $extraFilters = $this->extractExportFilters($validated);
 
         if ($format === 'csv') {
             $csvSeparator = $separator === 'semicolon' ? ';' : ',';
-            $filename = PegawaiExportFilename::pageExportFilename('csv', $restrictSlug, $sourceUnitFilter, $page, $rowCount);
+            $filename = PegawaiExportFilename::pageExportFilename('csv', $restrictSlug, $sourceUnitFilter, $page, $rowCount, $extraFilters);
             return $this->streamCsv($rows, $csvSeparator, $filename);
         }
 
-        $filename = PegawaiExportFilename::pageExportFilename('xlsx', $restrictSlug, $sourceUnitFilter, $page, $rowCount);
+        $filename = PegawaiExportFilename::pageExportFilename('xlsx', $restrictSlug, $sourceUnitFilter, $page, $rowCount, $extraFilters);
         return Excel::download(new PegawaiExport($rows, PegawaiControllerExportColumns::ALL), $filename);
     }
 
@@ -848,7 +849,7 @@ class PegawaiController extends Controller
             }
 
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, $columns, $separator);
+            fputcsv($handle, PegawaiControllerExportColumns::headings($columns), $separator);
 
             foreach ($rows as $row) {
                 $line = [];
